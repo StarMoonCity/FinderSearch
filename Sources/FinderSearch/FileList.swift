@@ -368,6 +368,7 @@ import AppKit
             ) { model.extract() }
             add(String(localized: "Duplicate"), enabled: !model.busy) { model.duplicate() }
             add(String(localized: "Copy")) { model.copy() }
+            add(String(localized: "Copy File Name")) { model.copyFileName() }
             add(String(localized: "Copy Path")) { model.copyPath() }
             let tags = NSMenu(); tags.autoenablesItems = false
             for name in ["Red", "Orange", "Yellow", "Green", "Blue", "Purple", "Gray"] {

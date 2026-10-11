@@ -72,6 +72,11 @@ extension SearchModel {
         NSPasteboard.general.setString(
             selectedItems.map(\.path).joined(separator: "\n"), forType: .string)
     }
+    func copyFileName() {
+        NSPasteboard.general.clearContents();
+        NSPasteboard.general.setString(
+            selectedItems.map(\.name).joined(separator: "\n"), forType: .string)
+    }
     func paste(move: Bool = false) {
         guard canWriteHere else { return }
         let urls =

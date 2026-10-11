@@ -118,7 +118,7 @@ opening or previewing a cloud file may trigger a provider download.
 - **Trash and undo:** Command-Delete moves selected files to recoverable Trash;
   while editing text it remains a text-editing command. Command-Z and
   Shift-Command-Z undo/redo file actions and tags. History is in memory per tab.
-- **Other actions:** Get Info, Duplicate, Copy Path, tags, sharing, and revealing in Finder.
+- **Other actions:** Get Info, Duplicate, Copy, Copy File Name, Copy Path, tags, sharing, and revealing in Finder.
   Open With lists compatible applications and offers an application chooser.
   Compress creates a ZIP; Extract ZIP creates a uniquely named folder beside the archive.
   Standard, unencrypted ZIPs are supported; ZIP64, symbolic links, and special files are rejected.

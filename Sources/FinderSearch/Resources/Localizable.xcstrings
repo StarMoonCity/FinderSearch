@@ -1570,6 +1570,26 @@
           }
         }
       }
+    },
+    "Building Index…": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在建立索引…"
+          }
+        }
+      }
+    },
+    "The first scan covers the whole disk and takes about half a minute.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "首次扫描覆盖整个磁盘，大约需要半分钟。"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

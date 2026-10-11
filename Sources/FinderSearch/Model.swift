@@ -592,7 +592,9 @@ struct FileJournal { let name: String; let operations: [FileMutation] }
         guard !statusStarted else { return }; statusStarted = true
         while !Task.isCancelled {
             await refreshStatus()
-            try? await Task.sleep(for: .seconds(5))
+            // A first-run scan answers Err until it finishes (~20s), so poll
+            // tightly then and coast once the index is loaded.
+            try? await Task.sleep(for: ready ? .seconds(5) : .seconds(1))
         }; statusStarted = false
     }
     func refreshStatus() async {

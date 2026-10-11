@@ -343,7 +343,9 @@ struct BrowserView: View {
             Color(nsColor: .controlBackgroundColor))
     }
     @ViewBuilder private var fileContent: some View {
-        if model.viewMode == .columns && model.canWriteHere {
+        if !model.ready {
+            indexing
+        } else if model.viewMode == .columns && model.canWriteHere {
             ColumnBrowser(model: model, focusFiles: { focusFiles() }, rowMenu: rowActions).id(
                 model.id)
         } else if (model.loading || model.searching) && model.sortedHits.isEmpty {
@@ -368,6 +370,16 @@ struct BrowserView: View {
                 GalleryBrowser(model: model, select: select, rowMenu: rowActions).id(model.id)
             }
         }
+    }
+    /// The daemon's first scan covers the whole disk and answers Err until it
+    /// finishes, so there is nothing to list yet.
+    private var indexing: some View {
+        VStack(spacing: 12) {
+            ProgressView().controlSize(.regular)
+            Text("Building Index…").font(.callout)
+            Text("The first scan covers the whole disk and takes about half a minute.")
+                .font(.caption).foregroundStyle(.secondary)
+        }.frame(maxWidth: .infinity, maxHeight: .infinity)
     }
     private var iconGrid: some View {
         GeometryReader { geometry in

@@ -61,6 +61,7 @@ import UniformTypeIdentifiers
             }
             CommandGroup(after: .pasteboard) {
                 Button("Invert Selection") { model?.invertSelection() }
+                    .disabled(model?.sortedHits.isEmpty != false)
             }
             CommandGroup(after: .newItem) {
                 Button("Open Selected") { model?.open() }.keyboardShortcut("o").disabled(
@@ -188,18 +189,18 @@ struct BrowserView: View {
                             model.goBack()
                         } label: {
                             Image(systemName: "chevron.left")
-                        }.disabled(model.backStack.isEmpty).help("Back")
+                        }.disabled(model.backStack.isEmpty).help(String(localized: "Back"))
                         Button {
                             model.goForward()
                         } label: {
                             Image(systemName: "chevron.right")
-                        }.disabled(model.forwardStack.isEmpty).help("Forward")
+                        }.disabled(model.forwardStack.isEmpty).help(String(localized: "Forward"))
                         Button {
                             model.openEnclosingFolder()
                         } label: {
                             Image(systemName: "chevron.up")
                         }.disabled(!model.isBrowsing || model.location.path == "/").help(
-                            "Enclosing Folder")
+                            String(localized: "Enclosing Folder"))
                     }
                 }
                 ToolbarItem {
@@ -216,26 +217,26 @@ struct BrowserView: View {
                         Toggle("Show Hidden Files", isOn: $model.showHidden)
                     } label: {
                         Image(systemName: "arrow.up.arrow.down")
-                    }.help("Sort")
+                    }.help(String(localized: "Sort"))
                 }
                 ToolbarItem {
                     ShareLink(items: model.selectedItems.map(\.url)) {
                         Image(systemName: "square.and.arrow.up")
-                    }.disabled(model.selection.isEmpty).help("Share")
+                    }.disabled(model.selection.isEmpty).help(String(localized: "Share"))
                 }
                 ToolbarItem {
                     Menu {
                         ForEach(tags, id: \.0) { name, _ in Button(name) { model.tag(name) } }
                     } label: {
                         Image(systemName: "tag")
-                    }.disabled(model.selection.isEmpty).help("Tags")
+                    }.disabled(model.selection.isEmpty).help(String(localized: "Tags"))
                 }
                 ToolbarItem {
                     Menu {
                         actions
                     } label: {
                         Image(systemName: "ellipsis")
-                    }.help("Actions")
+                    }.help(String(localized: "Actions"))
                 }
             }
             .searchable(text: $model.query, placement: .toolbar, prompt: "Search")
@@ -389,7 +390,10 @@ struct BrowserView: View {
             Color(nsColor: .controlBackgroundColor))
     }
     @ViewBuilder private var fileContent: some View {
-        if !model.ready {
+        // Only index-backed views wait on the daemon; local folder browsing
+        // lists directories without it.
+        let indexBacked = model.isSearch || model.route == "recents" || model.route.hasPrefix("tag:")
+        if !model.ready && indexBacked && model.sortedHits.isEmpty {
             indexing
         } else if model.viewMode == .columns && model.canWriteHere {
             ColumnBrowser(model: model, focusFiles: { focusFiles() }, rowMenu: rowActions).id(

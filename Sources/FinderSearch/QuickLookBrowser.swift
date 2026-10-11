@@ -12,13 +12,13 @@ struct QuickLookBrowser: View {
                     } label: {
                         Image(systemName: "chevron.left")
                     }
-                    .disabled(!model.canAdvancePreview(-1)).help("Previous file")
+                    .disabled(!model.canAdvancePreview(-1)).help(String(localized: "Previous file"))
                     Button {
                         model.advancePreview(1)
                     } label: {
                         Image(systemName: "chevron.right")
                     }
-                    .disabled(!model.canAdvancePreview(1)).help("Next file")
+                    .disabled(!model.canAdvancePreview(1)).help(String(localized: "Next file"))
                     Text(hit.name).font(.headline).lineLimit(1)
                     Spacer()
                     Text(model.previewPosition).foregroundStyle(.secondary).monospacedDigit()

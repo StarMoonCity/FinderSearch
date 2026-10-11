@@ -140,6 +140,8 @@ enum FolderSize {
                 at: url, includingPropertiesForKeys: Array(keys))
         else { return 0 }
         for case let item as URL in walker {
+            // A cancelled walk still returns what it counted; callers only need a total.
+            if Task.isCancelled { return total }
             guard let values = try? item.resourceValues(forKeys: keys) else { continue }
             if values.isSymbolicLink == true { walker.skipDescendants(); continue }
             if values.isDirectory != true { total += Int64(values.fileSize ?? 0) }

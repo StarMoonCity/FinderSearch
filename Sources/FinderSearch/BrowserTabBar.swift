@@ -23,7 +23,7 @@ struct BrowserTabBar: View {
                 } label: {
                     Image(systemName: "plus").font(.system(size: 12, weight: .medium))
                         .frame(width: 32, height: 30).contentShape(Rectangle())
-                }.buttonStyle(.plain).help("New Tab (⌘T)")
+                }.buttonStyle(.plain).help(String(localized: "New Tab (⌘T)"))
                     .accessibilityLabel(String(localized: "New Tab"))
                     .padding(.trailing, 6)
             }
@@ -62,7 +62,7 @@ private struct BrowserTab: View {
                 Image(systemName: "xmark").font(.system(size: 9, weight: .semibold))
                     .foregroundStyle(.secondary).frame(width: 28, height: 30)
                     .contentShape(Rectangle())
-            }.buttonStyle(.plain).disabled(model.busy).help("Close Tab")
+            }.buttonStyle(.plain).disabled(model.busy).help(String(localized: "Close Tab"))
                 .accessibilityLabel(String(localized: "Close \(model.title) tab"))
         }.frame(width: width, height: 30)
             .background(

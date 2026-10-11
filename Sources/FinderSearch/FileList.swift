@@ -349,7 +349,7 @@ import AppKit
                     title: String(localized: "Open With"), action: nil, keyEquivalent: "")
                 item.submenu = applications; menu.addItem(item)
             }
-            add("Open in New Tab", enabled: hit.isFolder) { [weak self] in
+            add(String(localized: "Open in New Tab"), enabled: hit.isFolder) { [weak self] in
                 self?.parent.newTab(hit.url)
             }
             add(String(localized: "Quick Look")) { model.preview = hit }

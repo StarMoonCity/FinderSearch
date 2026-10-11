@@ -104,7 +104,7 @@ struct BrowserSidebar: View, Equatable {
                             }
                             .buttonStyle(.borderless)
                             .disabled(state.ejectingVolumes.contains(volume.id))
-                            .help("Eject \(volume.name)")
+                            .help(String(localized: "Eject \(volume.name)"))
                             .accessibilityLabel(String(localized: "Eject \(volume.name)"))
                         }
                     }.tag(volume.id)

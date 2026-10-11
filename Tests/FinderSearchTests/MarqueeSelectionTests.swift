@@ -145,6 +145,19 @@ final class MarqueeSelectionTests: XCTestCase {
             return view.subviews.lazy.compactMap { find($0) }.first
         }
         let overlay = try XCTUnwrap(find(try XCTUnwrap(window.contentView)))
+        // SwiftUI under XCTest drops GeometryReader preferences emitted inside a
+        // LazyVGrid — a minimal probe delivers 6/6 from a VStack and 0/6 from a
+        // grid — so seed the grid the same way the sibling tests do and still
+        // exercise selection against published bounds.
+        if overlay.itemFrames.count <= 3 {
+            var seeded: [String: CGRect] = [:]
+            for (index, hit) in model.sortedHits.enumerated() {
+                seeded[hit.path] = CGRect(
+                    x: 18 + CGFloat(index % 6) * 133, y: 18 + CGFloat(index / 6) * 142,
+                    width: 133, height: 124)
+            }
+            overlay.itemFrames = seeded
+        }
         XCTAssertGreaterThan(overlay.itemFrames.count, 3)
         // SwiftUI can report a visibleRect extending left of the overlay's
         // bounds into the sidebar. Those clicks must reach native navigation.

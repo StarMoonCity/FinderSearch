@@ -8,7 +8,10 @@ stage=$(mktemp -d "${TMPDIR:-/tmp}/FinderSearch-icon.XXXXXX")
 trap 'rm -rf "$stage"' EXIT
 iconset="$stage/AppIcon.iconset"
 mkdir -p "$iconset" "${output:h}"
-swift scripts/render-icon.swift assets/logo.png "$stage/AppIcon.png" 1024
+# The interpreter's JIT cannot resolve AppKit symbols, so compile the renderer
+# instead of running the script directly. xcrun supplies the macOS SDK.
+xcrun swiftc -O scripts/render-icon.swift -o "$stage/render-icon"
+"$stage/render-icon" assets/logo.png "$stage/AppIcon.png" 1024
 for size in 16 32 128 256 512; do
     sips -z "$size" "$size" "$stage/AppIcon.png" --out "$iconset/icon_${size}x${size}.png" >/dev/null
     retina=$((size * 2))

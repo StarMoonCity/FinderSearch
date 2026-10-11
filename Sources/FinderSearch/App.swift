@@ -33,10 +33,16 @@ import UniformTypeIdentifiers
                     "o", modifiers: [.command, .shift])
             }
             CommandGroup(replacing: .undoRedo) {
-                Button(model?.undoStack.last.map { "Undo \($0.name)" } ?? "Undo") {
+                Button(
+                    model?.undoStack.last.map { String(localized: "Undo \($0.name)") }
+                        ?? String(localized: "Undo")
+                ) {
                     textOrFile("undo:") { model?.undo() }
                 }.keyboardShortcut("z")
-                Button(model?.redoStack.last.map { "Redo \($0.name)" } ?? "Redo") {
+                Button(
+                    model?.redoStack.last.map { String(localized: "Redo \($0.name)") }
+                        ?? String(localized: "Redo")
+                ) {
                     textOrFile("redo:") { model?.redo() }
                 }.keyboardShortcut("z", modifiers: [.command, .shift])
             }
@@ -89,7 +95,7 @@ import UniformTypeIdentifiers
             }
             CommandGroup(after: .toolbar) {
                 ForEach(FileViewMode.allCases.indices, id: \.self) { index in
-                    Button("As \(FileViewMode.allCases[index].title)") {
+                    Button(String(localized: "As \(FileViewMode.allCases[index].localizedTitle)")) {
                         model?.viewMode = FileViewMode.allCases[index]
                     }.keyboardShortcut(KeyEquivalent(Character(String(index + 1))))
                 }
@@ -169,7 +175,9 @@ struct BrowserView: View {
                 pathBar
                 statusBar
             }
-            .navigationTitle(model.isSearch ? "Searching “\(model.query)”" : model.title)
+            .navigationTitle(
+                model.isSearch ? String(localized: "Searching “\(model.query)”") : model.title
+            )
             .toolbar {
                 ToolbarItem(placement: .navigation) {
                     ControlGroup {
@@ -192,7 +200,7 @@ struct BrowserView: View {
                     Menu {
                         Picker("Sort By", selection: $model.sort) {
                             ForEach(FileSort.allCases, id: \.self) { sort in
-                                Text(sort.rawValue).tag(sort)
+                                Text(verbatim: sort.localizedName).tag(sort)
                             }
                         }
                         Toggle("Ascending", isOn: $model.ascending)
@@ -470,15 +478,18 @@ struct BrowserView: View {
                 Text(
                     model.selection.isEmpty
                         ? (model.isSearch && model.hits.count == 500
-                            ? "First 500 matches" : "\(model.sortedHits.count) items")
-                        : "\(model.selection.count) selected")
+                            ? String(localized: "First 500 matches")
+                            : String(localized: "\(model.sortedHits.count) items"))
+                        : String(localized: "\(model.selection.count) selected"))
             }
-            if model.isSearch { Text(String(format: "· %.1f ms", model.elapsed)).monospacedDigit() }
+            if model.isSearch {
+                Text("· \(String(format: "%.1f", model.elapsed)) ms").monospacedDigit()
+            }
             Spacer()
             if model.viewMode == .icons {
                 Image(systemName: "square").font(.system(size: 8));
-                Slider(value: $iconSize, in: 40...96).frame(width: 100).accessibilityLabel(
-                    "Icon Size");
+                Slider(value: $iconSize, in: 40...96).frame(width: 100)
+                    .accessibilityLabel(String(localized: "Icon Size"));
                 Image(systemName: "square").font(.system(size: 13))
             }
         }.font(.system(size: 11)).foregroundStyle(.secondary).padding(.horizontal, 14).frame(
@@ -498,7 +509,7 @@ struct BrowserView: View {
         Divider()
         Menu("View") {
             ForEach(FileViewMode.allCases, id: \.self) { mode in
-                Button(mode.title) { model.viewMode = mode }
+                Button(mode.localizedTitle) { model.viewMode = mode }
             }
         }
         Toggle("Show Hidden Files", isOn: $model.showHidden)

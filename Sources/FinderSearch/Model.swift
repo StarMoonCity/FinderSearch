@@ -13,11 +13,27 @@ enum FileViewMode: String, CaseIterable {
         case .gallery: return "rectangle.bottomthird.inset.filled"
         }
     }
-    var title: String { rawValue.capitalized }
+    var localizedTitle: String {
+        switch self {
+        case .icons: String(localized: "Icons")
+        case .list: String(localized: "List")
+        case .columns: String(localized: "Columns")
+        case .gallery: String(localized: "Gallery")
+        }
+    }
 }
 enum FileSort: String, CaseIterable {
     case name = "Name", modified = "Date Modified", size = "Size", kind = "Kind", relevance =
         "Relevance"
+    var localizedName: String {
+        switch self {
+        case .name: String(localized: "Name")
+        case .modified: String(localized: "Date Modified")
+        case .size: String(localized: "Size")
+        case .kind: String(localized: "Kind")
+        case .relevance: String(localized: "Relevance")
+        }
+    }
 }
 struct FileJournal { let name: String; let operations: [FileMutation] }
 
@@ -223,10 +239,11 @@ struct FileJournal { let name: String; let operations: [FileMutation] }
     var isSearch: Bool { !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
     var title: String {
         route == "recents"
-            ? "Recents"
+            ? String(localized: "Recents")
             : route.hasPrefix("tag:")
                 ? String(route.dropFirst(4))
-                : location.lastPathComponent.isEmpty ? "Macintosh HD" : location.lastPathComponent
+                : location.lastPathComponent.isEmpty
+                    ? String(localized: "Macintosh HD") : location.lastPathComponent
     }
     var selected: Hit? { selectedItems.first }
     var selectedItems: [Hit] {
@@ -404,7 +421,8 @@ struct FileJournal { let name: String; let operations: [FileMutation] }
                     }
                     let reply = try await engine.request(fields)
                     guard reply.ok else {
-                        throw Engine.Failure.message(reply.error ?? "Search failed")
+                        throw Engine.Failure.message(
+                            reply.error ?? String(localized: "Search failed"))
                     }
                     result = reply.hits ?? [];
                     if revision == generation { elapsed = Double(reply.took_us ?? 0) / 1000 }
@@ -599,13 +617,15 @@ struct FileJournal { let name: String; let operations: [FileMutation] }
             if item.isFolder {
                 navigate(item.url)
             } else if !NSWorkspace.shared.open(item.url) {
-                error = "Could not open ‘\(item.name)’."
+                error = String(localized: "Could not open ‘\(item.name)’.")
             }; return
         }
         for hit in selectedItems {
             guard hit.kind != "pending" else { continue }
             if hit.isFolder && selection.count == 1 { navigate(hit.url); return };
-            if !NSWorkspace.shared.open(hit.url) { error = "Could not open ‘\(hit.name)’." }
+            if !NSWorkspace.shared.open(hit.url) {
+                error = String(localized: "Could not open ‘\(hit.name)’.")
+            }
         }
     }
     func perform(
@@ -738,7 +758,10 @@ struct FileJournal { let name: String; let operations: [FileMutation] }
         guard !busy, let hit = renaming else { return false }
         guard !name.isEmpty, name != ".", name != "..", !name.contains("/"),
             !name.contains(":"), !name.contains("\0")
-        else { error = "Choose a valid filename without slashes or colons."; return false }
+        else {
+            error = String(localized: "Choose a valid filename without slashes or colons.");
+            return false
+        }
         renaming = nil; error = nil
         guard name != hit.name else { return true }
         perform(

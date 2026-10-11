@@ -26,6 +26,16 @@ mkdir -p "$app/Contents/MacOS" "$app/Contents/Helpers" "$app/Contents/Resources"
 ./scripts/build-icon.sh "$app/Contents/Resources/AppIcon.icns"
 cp "$swift_bin/FinderSearch" "$app/Contents/MacOS/"
 cp vendor/fsearch/target/release/fsearch "$app/Contents/Helpers/"
+# Localization: SwiftPM compiles Localizable.xcstrings into a resource bundle.
+# Copy it, and hoist its .lproj folders to the top level so Bundle.main —
+# what String(localized:) and SwiftUI's LocalizedStringKey read by default —
+# and the system per-app language list both see them.
+if [[ -d "$swift_bin/FinderSearch_FinderSearch.bundle" ]]; then
+    cp -R "$swift_bin/FinderSearch_FinderSearch.bundle" "$app/Contents/Resources/"
+    for lproj in "$swift_bin"/FinderSearch_FinderSearch.bundle/Contents/Resources/*.lproj(N); do
+        cp -R "$lproj" "$app/Contents/Resources/"
+    done
+fi
 cp vendor/fsearch/LICENSE "$app/Contents/Resources/fsearch-LICENSE"
 if [[ -f LICENSE ]]; then
     cp LICENSE "$app/Contents/Resources/FinderSearch-LICENSE"
@@ -43,6 +53,8 @@ cat > "$app/Contents/Info.plist" <<'PLIST'
 <key>CFBundleVersion</key><string>0.4.3</string>
 <key>LSMinimumSystemVersion</key><string>15.0</string>
 <key>NSHighResolutionCapable</key><true/>
+<key>CFBundleDevelopmentRegion</key><string>en</string>
+<key>CFBundleLocalizations</key><array><string>en</string><string>zh-Hans</string></array>
 </dict></plist>
 PLIST
 codesign --force --sign - "$app/Contents/Helpers/fsearch"

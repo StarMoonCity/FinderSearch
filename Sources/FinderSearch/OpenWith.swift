@@ -39,7 +39,8 @@ extension SearchModel {
     }
     func chooseApplication(for hit: Hit) {
         let panel = NSOpenPanel()
-        panel.title = "Choose Application"; panel.prompt = "Open"
+        panel.title = String(localized: "Choose Application");
+        panel.prompt = String(localized: "Open")
         panel.allowedContentTypes = [.applicationBundle]
         panel.directoryURL = URL(fileURLWithPath: "/Applications")
         if panel.runModal() == .OK, let application = panel.url { openWith(application, hit: hit) }

@@ -25,7 +25,7 @@ struct FolderLoadingSkeleton: View {
         .clipped()
         .allowsHitTesting(false)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Loading files")
+        .accessibilityLabel(String(localized: "Loading files"))
     }
 
     private func draw(context: GraphicsContext, size: CGSize) {

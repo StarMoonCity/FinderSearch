@@ -62,13 +62,13 @@ struct BrowserSidebar: View, Equatable {
         ) {
             Label("Recents", systemImage: "clock").tag("recents")
             Section("Favorites") {
-                row("Applications", "a.square", "/Applications")
-                row("Documents", "doc", home + "/Documents")
-                row("Downloads", "arrow.down.circle", home + "/Downloads")
-                row("Desktop", "menubar.dock.rectangle", home + "/Desktop")
-                row("Pictures", "photo", home + "/Pictures")
-                row("Music", "music.note", home + "/Music")
-                row("Movies", "film", home + "/Movies")
+                row(String(localized: "Applications"), "a.square", "/Applications")
+                row(String(localized: "Documents"), "doc", home + "/Documents")
+                row(String(localized: "Downloads"), "arrow.down.circle", home + "/Downloads")
+                row(String(localized: "Desktop"), "menubar.dock.rectangle", home + "/Desktop")
+                row(String(localized: "Pictures"), "photo", home + "/Pictures")
+                row(String(localized: "Music"), "music.note", home + "/Music")
+                row(String(localized: "Movies"), "film", home + "/Movies")
                 ForEach(state.favorites, id: \.self) { path in
                     row((path as NSString).lastPathComponent, "folder", path)
                         .contextMenu {
@@ -78,7 +78,8 @@ struct BrowserSidebar: View, Equatable {
             }
             Section("Locations") {
                 row(
-                    "iCloud Drive", "icloud", home + "/Library/Mobile Documents/com~apple~CloudDocs"
+                    String(localized: "iCloud Drive"), "icloud",
+                    home + "/Library/Mobile Documents/com~apple~CloudDocs"
                 )
                 row((home as NSString).lastPathComponent, "house", home)
                 ForEach(state.volumes) { volume in
@@ -96,7 +97,7 @@ struct BrowserSidebar: View, Equatable {
                             .buttonStyle(.borderless)
                             .disabled(state.ejectingVolumes.contains(volume.id))
                             .help("Eject \(volume.name)")
-                            .accessibilityLabel("Eject \(volume.name)")
+                            .accessibilityLabel(String(localized: "Eject \(volume.name)"))
                         }
                     }.tag(volume.id)
                 }

@@ -5,12 +5,13 @@ extension SearchModel {
     func reveal() { NSWorkspace.shared.activateFileViewerSelecting(selectedItems.map(\.url)) }
     func chooseFolder() {
         let panel = NSOpenPanel(); panel.canChooseDirectories = true; panel.canChooseFiles = false;
-        panel.prompt = "Open"
+        panel.prompt = String(localized: "Open")
         if panel.runModal() == .OK, let url = panel.url { navigate(url) }
     }
     func goToFolder() {
-        let alert = NSAlert(); alert.messageText = "Go to Folder"; alert.addButton(withTitle: "Go");
-        alert.addButton(withTitle: "Cancel")
+        let alert = NSAlert(); alert.messageText = String(localized: "Go to Folder");
+        alert.addButton(withTitle: String(localized: "Go"));
+        alert.addButton(withTitle: String(localized: "Cancel"))
         let field = NSTextField(string: location.path);
         field.frame = NSRect(x: 0, y: 0, width: 420, height: 24); alert.accessoryView = field
         alert.window.initialFirstResponder = field
@@ -28,21 +29,21 @@ extension SearchModel {
     func newFolder() {
         guard canWriteHere else { return }
         let folder = location
-        prepareOperations(name: "New Folder", renameCreated: true) {
+        prepareOperations(name: String(localized: "New Folder"), renameCreated: true) {
             [.folder(LocalFiles.availableName(in: folder, name: "untitled folder"))]
         }
     }
     func newTextFile() {
         guard canWriteHere else { return }
         let folder = location
-        prepareOperations(name: "New Text File", renameCreated: true) {
+        prepareOperations(name: String(localized: "New Text File"), renameCreated: true) {
             [.textFile(LocalFiles.availableName(in: folder, name: "untitled.txt"))]
         }
     }
     func duplicate() {
         let items = selectedItems
         guard !items.isEmpty else { return }
-        prepareOperations(name: "Duplicate") {
+        prepareOperations(name: String(localized: "Duplicate")) {
             try items.map {
                 try Task.checkCancellation()
                 return .copy(
@@ -52,7 +53,9 @@ extension SearchModel {
             }
         }
     }
-    func trash() { perform(selectedItems.map { .trash($0.url) }, name: "Move to Trash") }
+    func trash() {
+        perform(selectedItems.map { .trash($0.url) }, name: String(localized: "Move to Trash"))
+    }
     func copy() {
         NSPasteboard.general.clearContents();
         NSPasteboard.general.writeObjects(selectedItems.map { $0.url as NSURL })
@@ -83,8 +86,11 @@ extension SearchModel {
                 let item = details.0
                 let alert = NSAlert(); alert.messageText = item.name
                 alert.informativeText =
-                    "Kind: \(item.typeName)\nSize: \(ByteCountFormatter.string(fromByteCount: Int64(clamping: item.size), countStyle: .file))\nModified: \(item.modified.formatted())\nWhere: \(item.parent)\nTags: \(details.1.joined(separator: ", "))"
-                alert.addButton(withTitle: "OK"); alert.runModal()
+                    String(
+                        localized:
+                            "Kind: \(item.typeName)\nSize: \(ByteCountFormatter.string(fromByteCount: Int64(clamping: item.size), countStyle: .file))\nModified: \(item.modified.formatted())\nWhere: \(item.parent)\nTags: \(details.1.joined(separator: ", "))"
+                    )
+                alert.addButton(withTitle: String(localized: "OK")); alert.runModal()
             } catch {
                 if location == folder { self.error = error.localizedDescription }
             }
@@ -93,7 +99,7 @@ extension SearchModel {
     func tag(_ name: String) {
         let items = selectedItems
         guard !items.isEmpty else { return }
-        prepareOperations(name: "Tags") {
+        prepareOperations(name: String(localized: "Tags")) {
             try items.map { hit in
                 try Task.checkCancellation()
                 var tags = (try? hit.url.resourceValues(forKeys: [.tagNamesKey]).tagNames) ?? []

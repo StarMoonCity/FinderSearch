@@ -26,7 +26,8 @@ enum TransferPlan {
             let resolvedSource = source.resolvingSymlinksInPath().path
             let prefix = resolvedSource == "/" ? "/" : resolvedSource + "/"
             if target == resolvedSource || target.hasPrefix(prefix) {
-                throw Engine.Failure.message("A folder cannot be moved or copied inside itself.")
+                throw Engine.Failure.message(
+                    String(localized: "A folder cannot be moved or copied inside itself."))
             }
             let canonicalSource = source.deletingLastPathComponent().resolvingSymlinksInPath()
                 .appendingPathComponent(source.lastPathComponent)

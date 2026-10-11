@@ -24,6 +24,8 @@ preview files, and manage your files in a familiar macOS interface.
   tags, sharing, Trash, and undo.
 - **Stay in control.** Transfer progress, cancellation, and clear choices when
   files conflict.
+- **Available in your language.** English and Simplified Chinese, following your
+  Mac's language settings.
 
 Built with SwiftUI and AppKit, powered by
 [fsearch](https://github.com/noahdunnagan/fsearch). Search runs locally;

@@ -23,17 +23,17 @@ struct ViewModePicker: NSViewRepresentable {
         control.segmentStyle = .automatic
         control.target = coordinator
         control.action = #selector(Coordinator.selectMode(_:))
-        control.setAccessibilityLabel("View")
+        control.setAccessibilityLabel(String(localized: "View"))
         control.setContentHuggingPriority(.required, for: .horizontal)
         control.setContentCompressionResistancePriority(.required, for: .horizontal)
         for (index, mode) in FileViewMode.allCases.enumerated() {
             let image = NSImage(
-                systemSymbolName: mode.symbol, accessibilityDescription: mode.title)?
+                systemSymbolName: mode.symbol, accessibilityDescription: mode.localizedTitle)?
                 .withSymbolConfiguration(.init(pointSize: 14, weight: .regular))
             control.setImage(image, forSegment: index)
             control.setImageScaling(.scaleProportionallyDown, forSegment: index)
             control.setWidth(34, forSegment: index)
-            control.setToolTip(mode.title, forSegment: index)
+            control.setToolTip(mode.localizedTitle, forSegment: index)
         }
         coordinator.update(control)
         return control

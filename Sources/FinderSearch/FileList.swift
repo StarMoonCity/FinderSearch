@@ -19,9 +19,11 @@ import AppKit
         table.allowsMultipleSelection = true; table.usesAlternatingRowBackgroundColors = true
         table.columnAutoresizingStyle = .lastColumnOnlyAutoresizingStyle
         for (key, title, width, minimum) in [
-            ("name", "Name", 300.0, 180.0), ("modified", "Date Modified", 180.0, 145.0),
-            ("size", "Size", 85.0, 70.0), ("kind", "Kind", 130.0, 90.0),
-            ("where", "Where", 200.0, 130.0),
+            ("name", String(localized: "Name"), 300.0, 180.0),
+            ("modified", String(localized: "Date Modified"), 180.0, 145.0),
+            ("size", String(localized: "Size"), 85.0, 70.0),
+            ("kind", String(localized: "Kind"), 130.0, 90.0),
+            ("where", String(localized: "Where"), 200.0, 130.0),
         ] {
             let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier(key))
             column.title = title; column.width = width; column.minWidth = minimum
@@ -296,35 +298,42 @@ import AppKit
             menu.autoenablesItems = false
             if !items.indices.contains(row) {
                 let writable = model.canWriteHere && !model.busy
-                add("New Folder", enabled: writable) { model.newFolder() }
-                add("New Text File", enabled: writable) { model.newTextFile() }
-                add("Paste Items", enabled: writable) { model.paste() }
-                add("Move Items Here", enabled: writable) { model.paste(move: true) }
+                add(String(localized: "New Folder"), enabled: writable) { model.newFolder() }
+                add(String(localized: "New Text File"), enabled: writable) { model.newTextFile() }
+                add(String(localized: "Paste Items"), enabled: writable) { model.paste() }
+                add(String(localized: "Move Items Here"), enabled: writable) {
+                    model.paste(move: true)
+                }
                 menu.addItem(.separator())
-                add("Open in New Tab", enabled: model.canWriteHere) { [weak self] in
+                add(String(localized: "Open in New Tab"), enabled: model.canWriteHere) {
+                    [weak self] in
                     self?.parent.newTab(model.location)
                 }
-                add("Add Folder to Sidebar", enabled: model.canWriteHere) { [weak self] in
+                add(String(localized: "Add Folder to Sidebar"), enabled: model.canWriteHere) {
+                    [weak self] in
                     self?.parent.addFavorite(model.location)
                 }
                 menu.addItem(.separator())
                 let views = NSMenu(); views.autoenablesItems = false
                 for mode in FileViewMode.allCases {
-                    let item = add(mode.title, to: views) { model.viewMode = mode }
+                    let item = add(mode.localizedTitle, to: views) { model.viewMode = mode }
                     item.state = model.viewMode == mode ? .on : .off
                 }
-                let viewItem = NSMenuItem(title: "View", action: nil, keyEquivalent: "")
+                let viewItem = NSMenuItem(
+                    title: String(localized: "View"), action: nil, keyEquivalent: "")
                 viewItem.submenu = views; menu.addItem(viewItem)
-                let hidden = add("Show Hidden Files") { model.showHidden.toggle() }
+                let hidden = add(String(localized: "Show Hidden Files")) {
+                    model.showHidden.toggle()
+                }
                 hidden.state = model.showHidden ? .on : .off
-                add("Refresh", enabled: !model.busy) { model.schedule() }
+                add(String(localized: "Refresh"), enabled: !model.busy) { model.schedule() }
                 return menu
             }
             if !table.selectedRowIndexes.contains(row) {
                 table.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false)
             }
             let hit = items[row]
-            add("Open") { model.open(hit) }
+            add(String(localized: "Open")) { model.open(hit) }
             if !hit.isFolder {
                 let applications = NSMenu(); applications.autoenablesItems = false
                 for application in OpenWithApps.applications(for: hit) {
@@ -333,34 +342,47 @@ import AppKit
                     }
                 }
                 applications.addItem(.separator())
-                add("Other…", to: applications) { model.chooseApplication(for: hit) }
-                let item = NSMenuItem(title: "Open With", action: nil, keyEquivalent: "")
+                add(String(localized: "Other…"), to: applications) {
+                    model.chooseApplication(for: hit)
+                }
+                let item = NSMenuItem(
+                    title: String(localized: "Open With"), action: nil, keyEquivalent: "")
                 item.submenu = applications; menu.addItem(item)
             }
             add("Open in New Tab", enabled: hit.isFolder) { [weak self] in
                 self?.parent.newTab(hit.url)
             }
-            add("Quick Look") { model.preview = hit }
-            add("Open Enclosing Folder") { model.navigate(hit.url.deletingLastPathComponent()) }
+            add(String(localized: "Quick Look")) { model.preview = hit }
+            add(String(localized: "Open Enclosing Folder")) {
+                model.navigate(hit.url.deletingLastPathComponent())
+            }
             menu.addItem(.separator())
-            add("Get Info") { model.info() }
-            add("Rename…", enabled: !model.busy) { model.renameItems() }
-            add("Compress", enabled: !model.busy && model.canWriteHere) { model.compress() }
-            add("Extract ZIP", enabled: !model.busy && hit.url.pathExtension.lowercased() == "zip")
-            { model.extract() }
-            add("Duplicate", enabled: !model.busy) { model.duplicate() }
-            add("Copy") { model.copy() }
-            add("Copy Path") { model.copyPath() }
+            add(String(localized: "Get Info")) { model.info() }
+            add(String(localized: "Rename…"), enabled: !model.busy) { model.renameItems() }
+            add(String(localized: "Compress"), enabled: !model.busy && model.canWriteHere) {
+                model.compress()
+            }
+            add(
+                String(localized: "Extract ZIP"),
+                enabled: !model.busy && hit.url.pathExtension.lowercased() == "zip"
+            ) { model.extract() }
+            add(String(localized: "Duplicate"), enabled: !model.busy) { model.duplicate() }
+            add(String(localized: "Copy")) { model.copy() }
+            add(String(localized: "Copy Path")) { model.copyPath() }
             let tags = NSMenu(); tags.autoenablesItems = false
             for name in ["Red", "Orange", "Yellow", "Green", "Blue", "Purple", "Gray"] {
                 let item = NSMenuItem(
-                    title: name, action: #selector(runMenuAction(_:)), keyEquivalent: "")
+                    title: String(localized: String.LocalizationValue(name)),
+                    action: #selector(runMenuAction(_:)),
+                    keyEquivalent: "")
                 item.target = self; item.tag = actions.count; item.isEnabled = !model.busy;
                 actions[item.tag] = { model.tag(name) }; tags.addItem(item)
             }
-            let tagItem = NSMenuItem(title: "Tags", action: nil, keyEquivalent: "");
+            let tagItem = NSMenuItem(
+                title: String(localized: "Tags"), action: nil, keyEquivalent: "");
             tagItem.submenu = tags; menu.addItem(tagItem)
-            menu.addItem(.separator()); add("Move to Trash", enabled: !model.busy) { model.trash() }
+            menu.addItem(.separator());
+            add(String(localized: "Move to Trash"), enabled: !model.busy) { model.trash() }
             return menu
         }
         @objc private func runMenuAction(_ sender: NSMenuItem) { actions[sender.tag]?() }

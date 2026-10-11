@@ -8,6 +8,14 @@ struct RenameMove: Equatable, Sendable {
 struct BatchRenameSpec: Equatable, Sendable {
     enum Mode: String, CaseIterable, Sendable {
         case replace = "Replace Text", add = "Add Text", number = "Numbered Names"
+
+        var localizedName: String {
+            switch self {
+            case .replace: String(localized: "Replace Text")
+            case .add: String(localized: "Add Text")
+            case .number: String(localized: "Numbered Names")
+            }
+        }
     }
     var mode: Mode = .replace
     var find = ""
@@ -24,7 +32,7 @@ enum BatchRenames {
             let stem = ext.isEmpty ? hit.name : hit.url.deletingPathExtension().lastPathComponent
             let name: String
             guard spec.start >= 0, spec.start <= Int.max - hits.count else {
-                throw Engine.Failure.message("Choose a valid starting number.")
+                throw Engine.Failure.message(String(localized: "Choose a valid starting number."))
             }
             switch spec.mode {
             case .replace:
@@ -38,7 +46,7 @@ enum BatchRenames {
                 !name.contains("\0"), !name.contains(":")
             else {
                 throw Engine.Failure.message(
-                    "Names cannot be empty or contain /, : or a null character.")
+                    String(localized: "Names cannot be empty or contain /, : or a null character."))
             }
             let destination = hit.url.deletingLastPathComponent().appendingPathComponent(
                 name + (ext.isEmpty ? "" : "." + ext))
@@ -52,7 +60,7 @@ enum BatchRenames {
                 caseSensitive[parent.path] == false
                 ? destination.path.lowercased() : destination.path
             guard destinations.insert(key).inserted else {
-                throw Engine.Failure.message("Each item needs a different name.")
+                throw Engine.Failure.message(String(localized: "Each item needs a different name."))
             }
             return RenameMove(source: hit.url, destination: destination)
         }.filter { $0.source != $0.destination }
@@ -73,7 +81,7 @@ enum BatchRenames {
                     && identities.contains(identity(move.destination) ?? ""))
             {
                 throw Engine.Failure.message(
-                    "“\(move.destination.lastPathComponent)” already exists.")
+                    String(localized: "“\(move.destination.lastPathComponent)” already exists."))
             }
         }
     }
@@ -146,7 +154,9 @@ struct BatchRenameSheet: View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Rename \(request.hits.count) Items").font(.headline)
             Picker("Format", selection: $spec.mode) {
-                ForEach(BatchRenameSpec.Mode.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+                ForEach(BatchRenameSpec.Mode.allCases, id: \.self) {
+                    Text($0.localizedName).tag($0)
+                }
             }
             if spec.mode == .replace { TextField("Find", text: $spec.find) }
             TextField(
@@ -187,7 +197,7 @@ struct BatchRenameSheet: View {
                 Spacer()
                 Button("Rename") {
                     model.batchRename = nil
-                    model.perform([.renameBatch(moves)], name: "Rename Items")
+                    model.perform([.renameBatch(moves)], name: String(localized: "Rename Items"))
                 }.keyboardShortcut(.defaultAction).disabled(
                     checking || message != nil || moves.isEmpty || model.busy)
             }

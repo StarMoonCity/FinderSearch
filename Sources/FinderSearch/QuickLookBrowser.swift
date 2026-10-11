@@ -58,7 +58,9 @@ extension SearchModel {
     var previewIndex: Int? {
         preview.flatMap { hit in previewItems.firstIndex { $0.path == hit.path } }
     }
-    var previewPosition: String { previewIndex.map { "\($0 + 1) of \(previewItems.count)" } ?? "" }
+    var previewPosition: String {
+        previewIndex.map { String(localized: "\($0 + 1) of \(previewItems.count)") } ?? ""
+    }
     func canAdvancePreview(_ offset: Int) -> Bool {
         guard let index = previewIndex else { return false }
         return previewItems.indices.contains(index + offset)

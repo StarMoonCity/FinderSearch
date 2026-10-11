@@ -22,6 +22,13 @@ extension SearchModel {
                     isDirectory: true))
         }
     }
+    func invertSelection() {
+        selection = Set(sortedHits.map(\.path)).subtracting(selection)
+    }
+    func openEnclosingFolder() {
+        guard isBrowsing, location.path != "/" else { return }
+        navigate(location.deletingLastPathComponent())
+    }
     func rename() {
         guard !busy, let hit = selected, selection.count == 1 else { return }
         beginRename(hit)
@@ -107,5 +114,31 @@ extension SearchModel {
                 return .tags(hit.url, tags)
             }
         }
+    }
+}
+
+/// Recursive byte totals for the details pane and selection summary.
+/// Symlinks are not followed, so directory cycles cannot loop.
+/// Large trees are slow — callers must run this off the main actor.
+enum FolderSize {
+    static func total(_ urls: [URL]) -> Int64 { urls.reduce(0) { $0 + total($1) } }
+    static func total(_ url: URL) -> Int64 {
+        let keys: Set<URLResourceKey> = [.isDirectoryKey, .isSymbolicLinkKey, .fileSizeKey]
+        guard let values = try? url.resourceValues(forKeys: keys) else { return 0 }
+        // Enumerators reject plain files, and a symlink root is never followed.
+        if values.isDirectory != true || values.isSymbolicLink == true {
+            return Int64(values.fileSize ?? 0)
+        }
+        var total: Int64 = 0
+        guard
+            let walker = FileManager.default.enumerator(
+                at: url, includingPropertiesForKeys: Array(keys))
+        else { return 0 }
+        for case let item as URL in walker {
+            guard let values = try? item.resourceValues(forKeys: keys) else { continue }
+            if values.isSymbolicLink == true { walker.skipDescendants(); continue }
+            if values.isDirectory != true { total += Int64(values.fileSize ?? 0) }
+        }
+        return total
     }
 }

@@ -85,6 +85,8 @@ opening or previewing a cloud file may trigger a provider download.
 - **Browse:** icons, sortable list, columns, and gallery via Command-1 through Command-4.
   Back/forward/up navigation, a path bar, favorites, mounted volumes, and iCloud's local folder.
   Eject buttons beside external/removable volumes and disk images safely unmount them.
+  The sidebar highlights the nearest sidebar row of the folder being browsed.
+  The toolbar's up button and Backspace open the enclosing folder.
   Right-click empty space for New Folder, New Text File, Paste, view options, and Refresh; right-click
   files for their actions in every view, including columns and gallery.
   Rename edits the name in place: Return saves, Escape or clicking away cancels.
@@ -101,6 +103,11 @@ opening or previewing a cloud file may trigger a provider download.
 - **Select and preview:** click, Command-click, or Shift-click; double-click or
   Command-O opens, Space/Command-Y uses Quick Look, and Return renames.
   In Quick Look, arrow keys browse the current selection (or visible files); Space closes it.
+  Edit → Invert Selection swaps the selection for the unselected items in view.
+  View → Show Preview Pane (Command-Option-P) keeps a Quick Look preview beside the
+  file list, following the selection; View → Show Details Pane (Command-Option-I)
+  lists Kind, Size, Created, Modified, Where, and Tags for one item, or the item
+  count and total size for many. The footer shows the selected total size.
 - **File actions:** Command-C copies file URLs, Command-V copies items, and
   Option-Command-V moves them. Folder drops move; Option-drag copies. Conflicts
   offer Replace, Keep Both, or Skip, with an apply-to-all option. Replace preserves

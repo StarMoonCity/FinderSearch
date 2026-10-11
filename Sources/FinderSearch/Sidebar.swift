@@ -21,18 +21,26 @@ struct SidebarState: Equatable {
         showDiskAccessHint: Bool
     ) {
         let home = NSHomeDirectory()
-        let fixedRoutes =
+        let special = ["recents"] + SidebarTags.values.map { "tag:" + $0.0 }
+        let folderRoutes =
             [
-                "recents", "/Applications", home,
+                "/Applications", home,
                 home + "/Library/Mobile Documents/com~apple~CloudDocs",
             ]
             + ["Documents", "Downloads", "Desktop", "Pictures", "Music", "Movies"].map {
                 home + "/" + $0
             }
-            + SidebarTags.values.map { "tag:" + $0.0 }
-        // An ordinary child folder selects no sidebar row. Moving between such
-        // folders should leave the entire sidebar untouched.
-        selection = (fixedRoutes + favorites + volumes.map(\.id)).contains(route) ? route : nil
+            + favorites + volumes.map(\.id)
+        if special.contains(route) {
+            selection = route
+        } else if folderRoutes.contains(route) {
+            selection = route
+        } else {
+            // A child of a sidebar folder highlights its nearest sidebar
+            // ancestor, so navigation never loses the sidebar's place.
+            selection = folderRoutes.filter { route.hasPrefix($0 + "/") }
+                .max(by: { $0.count < $1.count })
+        }
         self.favorites = favorites
         self.volumes = volumes
         self.ejectingVolumes = ejectingVolumes

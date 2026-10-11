@@ -66,10 +66,25 @@ struct FileJournal { let name: String; let operations: [FileMutation] }
     @Published var selection: Set<String> = [] {
         didSet {
             selectedCache = nil
+            scheduleSelectionSize()
             if let renaming, !selection.contains(renaming.path) { cancelRename() }
             if let focusedPath, selection.contains(focusedPath) { return }
             focusedPath = selection.sorted().first
             selectionAnchor = focusedPath
+        }
+    }
+    /// Recursive total for the current selection; nil while empty or too broad to cost.
+    @Published private(set) var selectionSize: Int64?
+    private var selectionSizeTask: Task<Void, Never>?
+    private func scheduleSelectionSize() {
+        selectionSizeTask?.cancel()
+        // Deep folder trees can take seconds; the count alone still shows above the cap.
+        guard !selection.isEmpty, selection.count <= 500 else { selectionSize = nil; return }
+        let urls = selectedItems.map(\.url)
+        selectionSizeTask = Task { @MainActor in
+            let total = try? await BackgroundWork.run { FolderSize.total(urls) }
+            guard !Task.isCancelled else { return }
+            selectionSize = total
         }
     }
     var marqueeSelecting = false
@@ -236,6 +251,8 @@ struct FileJournal { let name: String; let operations: [FileMutation] }
     private var metadata: NSMetadataQuery?
     private var metadataObserver: NSObjectProtocol?
     var canWriteHere: Bool { !isSearch && route != "recents" && !route.hasPrefix("tag:") }
+    /// Recents and tag views are virtual routes with no enclosing folder.
+    var isBrowsing: Bool { route == location.path }
     var isSearch: Bool { !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
     var title: String {
         route == "recents"

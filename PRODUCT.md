@@ -11,7 +11,7 @@ SwiftUI/AppKit and Quick Look; Rust fsearch via persistent JSON-lines connection
 A Mac user frustrated by Finder search speed and accuracy. The app should offer Finder's familiar browsing and everyday file workflows, retaining fast fuzzy filename search.
 
 ## Capabilities and Constraints
-Finder-style unified toolbar, sidebar, real file icons/thumbnails, icon/list/column/gallery views, sortable columns, path/status bars, tabs, back/forward/up navigation, favorites, mounted volumes and iCloud folder browsing. Everyday actions: open, Quick Look, rename, copy/paste/move, duplicate, new folder, recoverable Trash, tags, undo/redo, info and sharing. File mutations run off the UI thread and refuse overwrites; undo retains failed restore operations so they can be retried.
+Finder-style unified toolbar, sidebar, real file icons/thumbnails, icon/list/column/gallery views, sortable columns, path/status bars, tabs, back/forward/up navigation, favorites, mounted volumes and iCloud folder browsing. The sidebar highlights the folder being browsed; optional preview and details panes follow the selection. Everyday actions: open, Quick Look, rename, copy/paste/move, duplicate, new folder, recoverable Trash, tags, undo/redo, info and sharing. File mutations run off the UI thread and refuse overwrites; undo retains failed restore operations so they can be retried.
 
 Recent folder views and their selections are cached per tab for immediate back/forward navigation and search clearing, followed by a background refresh. Icons use bounded background loading; gallery thumbnails are lazy and reused across views. Keyboard grid/gallery navigation keeps the focused item visible, with anchored Shift ranges.
 
@@ -27,4 +27,4 @@ Follow Finder's native appearance and interaction conventions. Preserve macOS se
 - Native keyboard conventions and system appearance.
 
 ## Open Decisions and Limits
-The working name is provisional. Full OS-shell replacement is not available. AirDrop integration, Finder extension menus, folder disclosure rows, advanced grouping, batch rename, cloud management, saved smart folders and persistent session restoration remain beyond the current build. The current scope covers everyday file workflows.
+The working name is provisional. Full OS-shell replacement is not available. AirDrop integration, Finder extension menus, advanced grouping, batch rename, cloud management, saved smart folders and persistent session restoration remain beyond the current build. The current scope covers everyday file workflows.

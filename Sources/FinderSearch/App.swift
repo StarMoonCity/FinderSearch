@@ -59,6 +59,9 @@ import UniformTypeIdentifiers
                     }
                 }.keyboardShortcut("a")
             }
+            CommandGroup(after: .pasteboard) {
+                Button("Invert Selection") { model?.invertSelection() }
+            }
             CommandGroup(after: .newItem) {
                 Button("Open Selected") { model?.open() }.keyboardShortcut("o").disabled(
                     model?.selection.isEmpty != false)
@@ -101,6 +104,12 @@ import UniformTypeIdentifiers
                 }
                 Button("Show Hidden Files") { model?.showHidden.toggle() }.keyboardShortcut(
                     ".", modifiers: [.command, .shift])
+                Button("Show Preview Pane") {
+                    NotificationCenter.default.post(name: .togglePreviewPane, object: nil)
+                }.keyboardShortcut("p", modifiers: [.command, .option])
+                Button("Show Details Pane") {
+                    NotificationCenter.default.post(name: .toggleDetailsPane, object: nil)
+                }.keyboardShortcut("i", modifiers: [.command, .option])
                 Button("Refresh") { model?.schedule() }.keyboardShortcut("r")
                 Button("Search") {
                     NotificationCenter.default.post(name: .focusSearch, object: nil)
@@ -116,7 +125,11 @@ import UniformTypeIdentifiers
         }
     }
 }
-extension Notification.Name { static let focusSearch = Notification.Name("focusSearch") }
+extension Notification.Name {
+    static let focusSearch = Notification.Name("focusSearch")
+    static let togglePreviewPane = Notification.Name("togglePreviewPane")
+    static let toggleDetailsPane = Notification.Name("toggleDetailsPane")
+}
 struct BrowserRoot: View {
     @StateObject private var workspace = BrowserWorkspace(sessionDefaults: .standard)
     var body: some View {
@@ -136,6 +149,8 @@ struct BrowserView: View {
     @State private var browserWindow: NSWindow?
     @State private var iconSize: Double = 64
     @State private var gridColumns = 5
+    @State private var showPreviewPane = false
+    @State private var showDetailsPane = false
     private let tags = SidebarTags.values
     var body: some View {
         NavigationSplitView {
@@ -151,29 +166,17 @@ struct BrowserView: View {
                 eject: { volume in workspace.eject(volume) { model.error = $0 } }
             ).equatable()
         } detail: {
-            VStack(spacing: 0) {
-                if workspace.tabs.count > 1 { BrowserTabBar(workspace: workspace) }
-                if model.isSearch { searchScopeBar }
-                if let error = model.error {
-                    HStack {
-                        Image(systemName: "exclamationmark.triangle");
-                        Text(error).font(.callout).textSelection(.enabled); Spacer();
-                        Button {
-                            model.error = nil
-                        } label: {
-                            Image(systemName: "xmark")
-                        }.buttonStyle(.plain)
-                    }.padding(12).background(Color(nsColor: .controlBackgroundColor)); Divider()
+            Group {
+                if showPreviewPane || showDetailsPane {
+                    HStack(spacing: 0) {
+                        browserContent
+                        BrowserInspector(
+                            model: model, showPreview: showPreviewPane,
+                            showDetails: showDetailsPane)
+                    }
+                } else {
+                    browserContent
                 }
-                fileContent
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .contentShape(Rectangle())
-                    .contextMenu { backgroundActions }
-                    .modifier(SafeBackgroundDropTarget(model: model))
-                    .focusable(model.viewMode == .icons || model.viewMode == .gallery)
-                    .focused($keyboardFocus, equals: .files).focusEffectDisabled()
-                pathBar
-                statusBar
             }
             .navigationTitle(
                 model.isSearch ? String(localized: "Searching “\(model.query)”") : model.title
@@ -191,6 +194,12 @@ struct BrowserView: View {
                         } label: {
                             Image(systemName: "chevron.right")
                         }.disabled(model.forwardStack.isEmpty).help("Forward")
+                        Button {
+                            model.openEnclosingFolder()
+                        } label: {
+                            Image(systemName: "chevron.up")
+                        }.disabled(!model.isBrowsing || model.location.path == "/").help(
+                            "Enclosing Folder")
                     }
                 }
                 ToolbarItem {
@@ -248,6 +257,12 @@ struct BrowserView: View {
         .onReceive(NotificationCenter.default.publisher(for: .focusSearch)) { _ in
             fileNavigationActive = false; model.sort = .relevance; keyboardFocus = .search
         }
+        .onReceive(NotificationCenter.default.publisher(for: .togglePreviewPane)) { _ in
+            showPreviewPane.toggle()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .toggleDetailsPane)) { _ in
+            showDetailsPane.toggle()
+        }
         .onReceive(
             NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.didMountNotification)
         ) { _ in workspace.refreshVolumes() }
@@ -288,6 +303,35 @@ struct BrowserView: View {
             QuickLookBrowser(model: model)
         }
     }
+    /// Detail column without the inspector; kept separate so the default
+    /// browsing layout is unchanged when both panes are hidden.
+    private var browserContent: some View {
+        VStack(spacing: 0) {
+            if workspace.tabs.count > 1 { BrowserTabBar(workspace: workspace) }
+            if model.isSearch { searchScopeBar }
+            if let error = model.error {
+                HStack {
+                    Image(systemName: "exclamationmark.triangle");
+                    Text(error).font(.callout).textSelection(.enabled); Spacer();
+                    Button {
+                        model.error = nil
+                    } label: {
+                        Image(systemName: "xmark")
+                    }.buttonStyle(.plain)
+                }.padding(12).background(Color(nsColor: .controlBackgroundColor)); Divider()
+            }
+            fileContent
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .contentShape(Rectangle())
+                .contextMenu { backgroundActions }
+                .modifier(SafeBackgroundDropTarget(model: model))
+                .focusable(model.viewMode == .icons || model.viewMode == .gallery)
+                .focused($keyboardFocus, equals: .files).focusEffectDisabled()
+            pathBar
+            statusBar
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
     private func installKeyMonitor() {
         if let keyMonitor { NSEvent.removeMonitor(keyMonitor) }
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
@@ -305,6 +349,8 @@ struct BrowserView: View {
             else { return event }
             if event.modifierFlags.intersection([.command, .control, .option]).isEmpty {
                 if event.keyCode == 49 { model.preview = model.selected; return nil }
+                // Backspace opens the enclosing folder, as in Windows Explorer.
+                if event.keyCode == 51 { model.openEnclosingFolder(); return nil }
                 if event.keyCode == 36 { model.rename(); return nil }
                 if event.keyCode == 53 { model.selection = []; return nil }
                 if (model.viewMode == .icons || model.viewMode == .gallery
@@ -492,7 +538,12 @@ struct BrowserView: View {
                         ? (model.isSearch && model.hits.count == 500
                             ? String(localized: "First 500 matches")
                             : String(localized: "\(model.sortedHits.count) items"))
-                        : String(localized: "\(model.selection.count) selected"))
+                        : (model.selectionSize.map {
+                            String(
+                                localized:
+                                    "\(model.selection.count) selected · \(ByteCountFormatter.string(fromByteCount: $0, countStyle: .file))"
+                            )
+                        } ?? String(localized: "\(model.selection.count) selected")))
             }
             if model.isSearch {
                 Text("· \(String(format: "%.1f", model.elapsed)) ms").monospacedDigit()

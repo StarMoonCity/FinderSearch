@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+- **Preview and details panes:** View → Show Preview Pane (Command-Option-P) keeps a
+  Quick Look preview beside the file list, following the selection. View → Show
+  Details Pane (Command-Option-I) shows Kind, Size, Created, Modified, Where, and
+  Tags for one item, or item count and total size for many. The footer shows the
+  selected total size (capped at 500 items; larger selections show the count only).
+- **Sidebar highlight:** browsing a subfolder highlights its nearest sidebar row.
+- **Familiar navigation:** a toolbar up button and Backspace open the enclosing
+  folder; Edit → Invert Selection swaps the selection for the unselected items.
+
 ## 0.4.3 — 2026-10-10
 
 - **Faster folder loading:** bulk metadata reads are ~14× faster for regular files and ~36× faster for APFS subfolders; subfolder listing plus sorting is ~8× faster.

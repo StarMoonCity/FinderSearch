@@ -57,7 +57,14 @@ cat > "$app/Contents/Info.plist" <<'PLIST'
 <key>CFBundleLocalizations</key><array><string>en</string><string>zh-Hans</string></array>
 </dict></plist>
 PLIST
-codesign --force --sign - "$app/Contents/Helpers/fsearch"
-codesign --force --sign - "$app"
+# An ad-hoc signature gets a fresh cdhash on every build, which silently drops
+# the app's Full Disk Access grant (TCC matches the code requirement, not the
+# bundle ID). Sign with a stable identity when one is available; override with
+# FINDERSEARCH_SIGN_IDENTITY, or set it to "-" to force ad-hoc.
+sign_id="${FINDERSEARCH_SIGN_IDENTITY:-MacTool Dev}"
+codesign --force --sign "$sign_id" "$app/Contents/Helpers/fsearch" 2>/dev/null \
+    || codesign --force --sign - "$app/Contents/Helpers/fsearch"
+codesign --force --sign "$sign_id" "$app" 2>/dev/null \
+    || codesign --force --sign - "$app"
 codesign --verify --deep --strict "$app"
 printf 'Built %s\n' "$app"

@@ -5,6 +5,7 @@ import AppKit
 /// when hundreds of search results are replaced by a cached folder listing.
 @MainActor struct FileList: NSViewRepresentable {
     @ObservedObject var model: SearchModel
+    @ObservedObject private var clipboard = FileClipboard.shared
     let focusFiles: () -> Void
     let newTab: (URL) -> Void
     var addFavorite: (URL) -> Void = { _ in }
@@ -81,6 +82,17 @@ import AppKit
             table.marquee.configure(
                 model: parent.model, identity: parent.model.route + ":" + parent.model.query)
             table.marquee.focusFiles = parent.focusFiles
+            // Update existing cells without reloading rows or interrupting editing.
+            let visible = table.rows(in: table.visibleRect)
+            if visible.location != NSNotFound {
+                for row in visible.location..<NSMaxRange(visible) where items.indices.contains(row)
+                {
+                    for column in 0..<table.numberOfColumns {
+                        table.view(atColumn: column, row: row, makeIfNecessary: false)?.alphaValue =
+                            parent.clipboard.opacity(for: items[row].path)
+                    }
+                }
+            }
             let switchingTab = displayedTab != parent.model.id
             if switchingTab {
                 renameField?.cancelEditing(); renameField = nil
@@ -179,6 +191,7 @@ import AppKit
                 tableView.makeView(withIdentifier: tableColumn.identifier, owner: self) as? FileCell
                 ?? FileCell(identifier: tableColumn.identifier, withIcon: key == "name")
             cell.path = hit.path
+            cell.alphaValue = parent.clipboard.opacity(for: hit.path)
             switch key {
             case "name": cell.textField?.stringValue = hit.name
             case "modified":
@@ -195,6 +208,7 @@ import AppKit
             cell.textField?.textColor = key == "name" ? .labelColor : .secondaryLabelColor
             cell.textField?.alignment = key == "size" ? .right : .left
             if key == "name" {
+                cell.tagView?.configure(hit.metadataPending == true ? nil : hit.url)
                 cell.imageView?.image = FileIcons.shared.placeholder(hit, size: .row)
                 cell.iconTask?.cancel()
                 guard hit.metadataPending != true else { cell.iconTask = nil; return cell }
@@ -367,6 +381,7 @@ import AppKit
                 enabled: !model.busy && hit.url.pathExtension.lowercased() == "zip"
             ) { model.extract() }
             add(String(localized: "Duplicate"), enabled: !model.busy) { model.duplicate() }
+            add(String(localized: "Cut"), enabled: !model.busy) { model.cut() }
             add(String(localized: "Copy")) { model.copy() }
             add(String(localized: "Copy File Name")) { model.copyFileName() }
             add(String(localized: "Copy Path")) { model.copyPath() }
@@ -377,6 +392,11 @@ import AppKit
                     action: #selector(runMenuAction(_:)),
                     keyEquivalent: "")
                 item.target = self; item.tag = actions.count; item.isEnabled = !model.busy;
+                item.state =
+                    model.selectedItems.allSatisfy {
+                        FileTagCache.shared.cached($0.url)?.contains(where: { $0.name == name })
+                            == true
+                    } ? .on : .off;
                 actions[item.tag] = { model.tag(name) }; tags.addItem(item)
             }
             let tagItem = NSMenuItem(
@@ -408,6 +428,7 @@ import AppKit
 @MainActor final class FileCell: NSTableCellView {
     var path = ""
     var iconTask: Task<Void, Never>?
+    private(set) var tagView: FileTagView?
     init(identifier: NSUserInterfaceItemIdentifier, withIcon: Bool) {
         super.init(frame: .zero); self.identifier = identifier
         let text = RenameTextField(labelWithString: ""); text.font = .systemFont(ofSize: 12);
@@ -427,9 +448,20 @@ import AppKit
             ])
             leading = icon.trailingAnchor
         }
+        var trailing = trailingAnchor
+        if withIcon {
+            let tags = FileTagView(); tags.translatesAutoresizingMaskIntoConstraints = false
+            addSubview(tags); tagView = tags
+            NSLayoutConstraint.activate([
+                tags.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -8),
+                tags.centerYAnchor.constraint(equalTo: centerYAnchor),
+                tags.heightAnchor.constraint(equalToConstant: 10),
+            ])
+            trailing = tags.leadingAnchor
+        }
         NSLayoutConstraint.activate([
             text.leadingAnchor.constraint(equalTo: leading, constant: 6),
-            text.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -8),
+            text.trailingAnchor.constraint(equalTo: trailing, constant: -8),
             text.centerYAnchor.constraint(equalTo: centerYAnchor),
         ])
     }

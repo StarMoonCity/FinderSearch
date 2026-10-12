@@ -12,7 +12,7 @@ extension SearchModel {
         let alert = NSAlert(); alert.messageText = String(localized: "Go to Folder");
         alert.addButton(withTitle: String(localized: "Go"));
         alert.addButton(withTitle: String(localized: "Cancel"))
-        let field = NSTextField(string: location.path);
+        let field = EditingTextField(string: location.path);
         field.frame = NSRect(x: 0, y: 0, width: 420, height: 24); alert.accessoryView = field
         alert.window.initialFirstResponder = field
         if alert.runModal() == .alertFirstButtonReturn {
@@ -63,26 +63,31 @@ extension SearchModel {
     func trash() {
         perform(selectedItems.map { .trash($0.url) }, name: String(localized: "Move to Trash"))
     }
-    func copy() {
-        NSPasteboard.general.clearContents();
-        NSPasteboard.general.writeObjects(selectedItems.map { $0.url as NSURL })
+    func copy(clipboard: FileClipboard? = nil) {
+        (clipboard ?? .shared).write(selectedItems.map(\.url), cut: false)
+    }
+    func cut(clipboard: FileClipboard? = nil) {
+        guard !busy else { return }
+        (clipboard ?? .shared).write(selectedItems.map(\.url), cut: true)
     }
     func copyPath() {
         NSPasteboard.general.clearContents();
         NSPasteboard.general.setString(
             selectedItems.map(\.path).joined(separator: "\n"), forType: .string)
+        FileClipboard.shared.refresh()
     }
     func copyFileName() {
         NSPasteboard.general.clearContents();
         NSPasteboard.general.setString(
             selectedItems.map(\.name).joined(separator: "\n"), forType: .string)
     }
-    func paste(move: Bool = false) {
-        guard canWriteHere else { return }
-        let urls =
-            NSPasteboard.general.readObjects(
-                forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL] ?? []
-        transfer(urls, to: location, move: move)
+    func paste(move: Bool = false, clipboard: FileClipboard? = nil) {
+        guard canWriteHere, !busy else { return }
+        let clipboard = clipboard ?? .shared
+        let changeCount = clipboard.pasteboard.changeCount
+        transfer(clipboard.urls, to: location, move: move || clipboard.isCut) { successful in
+            clipboard.finish(successful, changeCount: changeCount)
+        }
     }
     func info() {
         guard let hit = selected else { return }
@@ -114,9 +119,13 @@ extension SearchModel {
         prepareOperations(name: String(localized: "Tags")) {
             try items.map { hit in
                 try Task.checkCancellation()
-                var tags = (try? hit.url.resourceValues(forKeys: [.tagNamesKey]).tagNames) ?? []
-                if tags.contains(name) { tags.removeAll { $0 == name } } else { tags.append(name) }
-                return .tags(hit.url, tags)
+                var tags = FileTag.read(hit.url)
+                if tags.contains(where: { $0.name == name }) {
+                    tags.removeAll { $0.name == name }
+                } else {
+                    tags.append(FileTag(name: name, color: FileTag.color(for: name)))
+                }
+                return .tags(hit.url, tags.map(\.storageValue))
             }
         }
     }

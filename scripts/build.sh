@@ -47,10 +47,10 @@ cat > "$app/Contents/Info.plist" <<'PLIST'
 <key>CFBundleExecutable</key><string>FinderSearch</string>
 <key>CFBundleIdentifier</key><string>local.findersearch.app</string>
 <key>CFBundleName</key><string>FinderSearch</string>
-<key>CFBundleIconFile</key><string>AppIcon.icns</string>
+<key>CFBundleIconFile</key><string>AppIcon</string>
 <key>CFBundlePackageType</key><string>APPL</string>
-<key>CFBundleShortVersionString</key><string>0.4.4</string>
-<key>CFBundleVersion</key><string>0.4.4</string>
+<key>CFBundleShortVersionString</key><string>0.4.7</string>
+<key>CFBundleVersion</key><string>0.4.7</string>
 <key>LSMinimumSystemVersion</key><string>15.0</string>
 <key>NSHighResolutionCapable</key><true/>
 <key>CFBundleDevelopmentRegion</key><string>en</string>
@@ -67,4 +67,6 @@ codesign --force --sign "$sign_id" "$app/Contents/Helpers/fsearch" 2>/dev/null \
 codesign --force --sign "$sign_id" "$app" 2>/dev/null \
     || codesign --force --sign - "$app"
 codesign --verify --deep --strict "$app"
+# Launch Services notices updated bundles by their directory modification time.
+touch "$app"
 printf 'Built %s\n' "$app"

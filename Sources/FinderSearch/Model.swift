@@ -249,7 +249,7 @@ struct FileJournal { let name: String; let operations: [FileMutation] }
     private var watchGeneration = 0
     private var watcher: DispatchSourceFileSystemObject?
     private var metadata: NSMetadataQuery?
-    private var metadataObserver: NSObjectProtocol?
+    private var metadataObservers: [NSObjectProtocol] = []
     var canWriteHere: Bool { !isSearch && route != "recents" && !route.hasPrefix("tag:") }
     /// Recents and tag views are virtual routes with no enclosing folder.
     var isBrowsing: Bool { route == location.path }
@@ -409,6 +409,9 @@ struct FileJournal { let name: String; let operations: [FileMutation] }
         let searchingNow = isSearch
         let cached = !searchingNow && restoreDefaultSnapshot()
         if route.hasPrefix("tag:") && !isSearch { loadTag(String(route.dropFirst(4))); return }
+        metadata?.stop(); metadata = nil
+        metadataObservers.forEach(NotificationCenter.default.removeObserver)
+        metadataObservers = []
         let folder = location, hidden = showHidden, text = query, searchScope = scope,
             type = fileType
         let recent = route == "recents" && !isSearch
@@ -649,7 +652,7 @@ struct FileJournal { let name: String; let operations: [FileMutation] }
     }
     func perform(
         _ operations: [FileMutation], name: String, history: Int = 0,
-        renameCreated: URL? = nil
+        renameCreated: URL? = nil, completion: (([FileMutation]) -> Void)? = nil
     ) {
         guard !operations.isEmpty, !busy else { return }; busy = true; error = nil
         cancelRename()
@@ -694,6 +697,13 @@ struct FileJournal { let name: String; let operations: [FileMutation] }
             for failed in result.failed {
                 if let index = successful.firstIndex(of: failed) { successful.remove(at: index) }
             }
+            FileTagCache.shared.invalidate(
+                Set(
+                    successful.compactMap { operation in
+                        if case .tags(let url, _) = operation { return url.path }
+                        return nil
+                    }))
+            completion?(successful)
             hits = OptimisticFiles.applying(successful, to: originalHits, in: folder)
             visibleCache = OptimisticFiles.applying(successful, to: originalOrder, in: folder)
             extraHits = OptimisticFiles.applying(successful, to: originalExtra, in: nil)
@@ -785,7 +795,7 @@ struct FileJournal { let name: String; let operations: [FileMutation] }
         guard name != hit.name else { return true }
         perform(
             [.move(hit.url, hit.url.deletingLastPathComponent().appendingPathComponent(name))],
-            name: "Rename")
+            name: String(localized: "Rename"))
         return true
     }
     func undo() {
@@ -798,32 +808,38 @@ struct FileJournal { let name: String; let operations: [FileMutation] }
     }
     private func loadTag(_ name: String) {
         metadata?.stop();
-        if let metadataObserver { NotificationCenter.default.removeObserver(metadataObserver) }
+        metadataObservers.forEach(NotificationCenter.default.removeObserver)
+        metadataObservers = []
         generation += 1; let token = generation
         searching = false; loading = !restoreDefaultSnapshot(); if loading { hits = [] };
         selection = []
         let q = NSMetadataQuery(); q.searchScopes = [NSHomeDirectory()];
         q.predicate = NSPredicate(format: "kMDItemUserTags LIKE %@", name + "*")
-        metadataObserver = NotificationCenter.default.addObserver(
-            forName: .NSMetadataQueryDidFinishGathering, object: q, queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor in
-                guard let self, self.generation == token, self.route == "tag:" + name,
-                    !self.isSearch, let query = self.metadata
-                else { return }
-                query.disableUpdates()
-                let paths = query.results.compactMap { value -> String? in
-                    guard let item = value as? NSMetadataItem,
-                        let path = item.value(forAttribute: NSMetadataItemPathKey) as? String
-                    else { return nil }; return path
+        metadataObservers = [
+            Notification.Name.NSMetadataQueryDidFinishGathering, .NSMetadataQueryDidUpdate,
+        ].map { notification in
+            NotificationCenter.default.addObserver(
+                forName: notification, object: q, queue: .main
+            ) { [weak self] _ in
+                Task { @MainActor in
+                    guard let self, self.generation == token, self.route == "tag:" + name,
+                        !self.isSearch, let query = self.metadata
+                    else { return }
+                    query.disableUpdates()
+                    let paths = query.results.compactMap { value -> String? in
+                        guard let item = value as? NSMetadataItem,
+                            let path = item.value(forAttribute: NSMetadataItemPathKey) as? String
+                        else { return nil }; return path
+                    }
+                    query.enableUpdates()
+                    self.loadTagResults(paths, token: token)
                 }
-                query.stop()
-                self.loadTagResults(paths, token: token)
             }
         }
         metadata = q; q.start()
     }
     private func loadTagResults(_ paths: [String], token: Int) {
+        task?.cancel()
         task = Task {
             do {
                 let result = try await BackgroundWork.run {
@@ -834,6 +850,7 @@ struct FileJournal { let name: String; let operations: [FileMutation] }
                 }
                 guard generation == token, !Task.isCancelled else { return }
                 hits = result
+                selection.formIntersection(Set(result.map(\.path)))
                 loading = false
                 // The normal presentation task sorts and saves the snapshot.
             } catch is CancellationError {} catch {
@@ -847,7 +864,8 @@ struct FileJournal { let name: String; let operations: [FileMutation] }
         preparationTask?.cancel(); operationControl?.cancel()
         watchRefresh?.cancel(); watcher?.cancel();
         metadata?.stop();
-        if let metadataObserver { NotificationCenter.default.removeObserver(metadataObserver) }
+        metadataObservers.forEach(NotificationCenter.default.removeObserver)
+        metadataObservers = []
     }
 }
 
@@ -856,8 +874,9 @@ struct FileJournal { let name: String; let operations: [FileMutation] }
         didSet { observeSession(); saveSession() }
     }
     @Published var selectedTab = UUID()
-    @Published var favorites: [String] =
-        UserDefaults.standard.stringArray(forKey: "favorites") ?? []
+    @Published private(set) var favorites: [String] = []
+    private let favoritesDefaults: UserDefaults
+    private var favoritesObserver: AnyCancellable?
     @Published private(set) var volumes: [MountedVolume] = []
     @Published private(set) var ejectingVolumes: Set<String> = []
     private let volumeLoader: @Sendable () async throws -> [MountedVolume]
@@ -875,10 +894,19 @@ struct FileJournal { let name: String; let operations: [FileMutation] }
         volumeEjector: @escaping @Sendable (URL) async throws -> Void = {
             try await MountedVolume.eject($0)
         },
-        sessionDefaults: UserDefaults? = nil
+        sessionDefaults: UserDefaults? = nil,
+        favoritesDefaults: UserDefaults = .standard
     ) {
         self.volumeLoader = volumeLoader; self.volumeEjector = volumeEjector
         self.sessionDefaults = sessionDefaults
+        self.favoritesDefaults = favoritesDefaults
+        favorites = FavoriteFolders.load(from: favoritesDefaults)
+        favoritesObserver = NotificationCenter.default.publisher(for: FavoriteFolders.changed)
+            .sink { [weak self] _ in
+                guard let self else { return }
+                let saved = FavoriteFolders.load(from: self.favoritesDefaults)
+                if self.favorites != saved { self.favorites = saved }
+            }
         if let data = sessionDefaults?.data(forKey: WorkspaceSession.key),
             let state = try? JSONDecoder().decode(WorkspaceSession.self, from: data),
             !state.tabs.isEmpty, state.tabs.count <= 50
@@ -910,13 +938,34 @@ struct FileJournal { let name: String; let operations: [FileMutation] }
         if !tabs.contains(where: { $0.id == selectedTab }) { selectedTab = tabs[0].id }
     }
     func addFavorite(_ url: URL) {
-        if !favorites.contains(url.path) {
-            favorites.append(url.path); UserDefaults.standard.set(favorites, forKey: "favorites")
+        guard url.isFileURL else { return }
+        if !favorites.contains(url.standardizedFileURL.path) {
+            favorites.append(url.standardizedFileURL.path); saveFavorites()
         }
+    }
+    @discardableResult func addFavoriteFolders(_ urls: [URL]) async -> Bool {
+        let folders =
+            (try? await BackgroundWork.run { FavoriteFolders.existingDirectories(urls) }) ?? []
+        guard !folders.isEmpty else { return false }
+        var seen = Set(favorites)
+        let added = folders.map(\.path).filter { seen.insert($0).inserted }
+        if !added.isEmpty { favorites.append(contentsOf: added); saveFavorites() }
+        return true
     }
     func removeFavorite(_ path: String) {
         favorites.removeAll { $0 == path };
-        UserDefaults.standard.set(favorites, forKey: "favorites")
+        saveFavorites()
+    }
+    func moveFavorites(from offsets: IndexSet, to destination: Int) {
+        guard !offsets.isEmpty, offsets.allSatisfy({ favorites.indices.contains($0) }),
+            (0...favorites.count).contains(destination)
+        else { return }
+        favorites.move(fromOffsets: offsets, toOffset: destination)
+        saveFavorites()
+    }
+    private func saveFavorites() {
+        favoritesDefaults.set(favorites, forKey: FavoriteFolders.key)
+        NotificationCenter.default.post(name: FavoriteFolders.changed, object: nil)
     }
     func refreshVolumes() {
         volumeTask?.cancel(); volumeGeneration += 1

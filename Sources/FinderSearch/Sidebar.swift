@@ -1,11 +1,62 @@
 import SwiftUI
 import AppKit
+import UniformTypeIdentifiers
 
 enum SidebarTags {
     static let values: [(String, Color)] = [
         ("Red", .red), ("Orange", .orange), ("Yellow", .yellow), ("Green", .green),
         ("Blue", .blue), ("Purple", .purple), ("Gray", .gray),
     ]
+}
+
+enum FavoriteFolders {
+    static let key = "sidebarFavorites"
+    static let changed = Notification.Name("FinderSearch.sidebarFavoritesChanged")
+
+    static func defaults(home: String = NSHomeDirectory()) -> [String] {
+        ["/Applications"]
+            + ["Documents", "Downloads", "Desktop", "Pictures", "Music", "Movies"]
+            .map { home + "/" + $0 }
+    }
+
+    static func load(from defaults: UserDefaults) -> [String] {
+        let paths =
+            defaults.stringArray(forKey: key)
+            ?? (Self.defaults() + (defaults.stringArray(forKey: "favorites") ?? []))
+        var seen = Set<String>()
+        return paths.filter { $0.hasPrefix("/") }.map {
+            URL(fileURLWithPath: $0).standardizedFileURL.path
+        }
+        .filter { seen.insert($0).inserted }
+    }
+
+    static func existingDirectories(_ urls: [URL]) -> [URL] {
+        var seen = Set<String>()
+        return urls.compactMap { url in
+            guard url.isFileURL else { return nil }
+            let url = url.standardizedFileURL
+            guard let values = try? url.resourceValues(forKeys: [.isDirectoryKey, .isPackageKey]),
+                values.isDirectory == true, values.isPackage != true,
+                seen.insert(url.path).inserted
+            else { return nil }
+            return url
+        }
+    }
+
+    static func label(for path: String) -> (name: String, symbol: String) {
+        let names = [
+            String(localized: "Applications"), String(localized: "Documents"),
+            String(localized: "Downloads"), String(localized: "Desktop"),
+            String(localized: "Pictures"), String(localized: "Music"),
+            String(localized: "Movies"),
+        ]
+        let symbols = [
+            "a.square", "doc", "arrow.down.circle", "menubar.dock.rectangle", "photo", "music.note",
+            "film",
+        ]
+        if let index = defaults().firstIndex(of: path) { return (names[index], symbols[index]) }
+        return ((path as NSString).lastPathComponent, "folder")
+    }
 }
 
 /// Folder results and loading phases have no bearing on sidebar content.
@@ -21,26 +72,19 @@ struct SidebarState: Equatable {
         showDiskAccessHint: Bool
     ) {
         let home = NSHomeDirectory()
-        let special = ["recents"] + SidebarTags.values.map { "tag:" + $0.0 }
-        let folderRoutes =
+        let fixedRoutes =
             [
-                "/Applications", home,
+                "recents", home,
                 home + "/Library/Mobile Documents/com~apple~CloudDocs",
             ]
-            + ["Documents", "Downloads", "Desktop", "Pictures", "Music", "Movies"].map {
-                home + "/" + $0
-            }
-            + favorites + volumes.map(\.id)
-        if special.contains(route) {
-            selection = route
-        } else if folderRoutes.contains(route) {
-            selection = route
-        } else {
-            // A child of a sidebar folder highlights its nearest sidebar
-            // ancestor, so navigation never loses the sidebar's place.
-            selection = folderRoutes.filter { route.hasPrefix($0 + "/") }
+            + SidebarTags.values.map { "tag:" + $0.0 }
+        // A child of a sidebar folder highlights its nearest sidebar
+        // ancestor, so navigation never loses the sidebar's place.
+        selection = (fixedRoutes + favorites + volumes.map(\.id)).contains(route)
+            ? route
+            : (favorites + volumes.map(\.id) + [home])
+                .filter { route.hasPrefix($0 + "/") }
                 .max(by: { $0.count < $1.count })
-        }
         self.favorites = favorites
         self.volumes = volumes
         self.ejectingVolumes = ejectingVolumes
@@ -52,6 +96,10 @@ struct BrowserSidebar: View, Equatable {
     let state: SidebarState
     let select: (String) -> Void
     let removeFavorite: (String) -> Void
+    let moveFavorites: (IndexSet, Int) -> Void
+    let openInNewTab: (URL) -> Void
+    let addFavoriteFolders: ([URL]) async -> Bool
+    @State private var folderDropTargeted = false
     let eject: (MountedVolume) -> Void
     private let home = NSHomeDirectory()
 
@@ -70,17 +118,23 @@ struct BrowserSidebar: View, Equatable {
         ) {
             Label("Recents", systemImage: "clock").tag("recents")
             Section("Favorites") {
-                row(String(localized: "Applications"), "a.square", "/Applications")
-                row(String(localized: "Documents"), "doc", home + "/Documents")
-                row(String(localized: "Downloads"), "arrow.down.circle", home + "/Downloads")
-                row(String(localized: "Desktop"), "menubar.dock.rectangle", home + "/Desktop")
-                row(String(localized: "Pictures"), "photo", home + "/Pictures")
-                row(String(localized: "Music"), "music.note", home + "/Music")
-                row(String(localized: "Movies"), "film", home + "/Movies")
+
                 ForEach(state.favorites, id: \.self) { path in
-                    row((path as NSString).lastPathComponent, "folder", path)
+                    let label = FavoriteFolders.label(for: path)
+                    row(label.name, label.symbol, path)
                         .contextMenu {
+                            folderActions(path)
+                            Divider()
                             Button("Remove from Sidebar") { removeFavorite(path) }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background {
+                            FavoriteDragTarget(path: path) { source, target in
+                                guard let from = state.favorites.firstIndex(of: source),
+                                    let to = state.favorites.firstIndex(of: target)
+                                else { return }
+                                moveFavorites(IndexSet(integer: from), to > from ? to + 1 : to)
+                            }
                         }
                 }
             }
@@ -88,8 +142,11 @@ struct BrowserSidebar: View, Equatable {
                 row(
                     String(localized: "iCloud Drive"), "icloud",
                     home + "/Library/Mobile Documents/com~apple~CloudDocs"
-                )
+                ).contextMenu {
+                    folderActions(home + "/Library/Mobile Documents/com~apple~CloudDocs")
+                }
                 row((home as NSString).lastPathComponent, "house", home)
+                    .contextMenu { folderActions(home) }
                 ForEach(state.volumes) { volume in
                     HStack {
                         Label(volume.name, systemImage: "externaldrive")
@@ -108,6 +165,14 @@ struct BrowserSidebar: View, Equatable {
                             .accessibilityLabel(String(localized: "Eject \(volume.name)"))
                         }
                     }.tag(volume.id)
+                        .contextMenu {
+                            folderActions(volume.id)
+                            if volume.canEject {
+                                Divider()
+                                Button("Eject “\(volume.name)”") { eject(volume) }
+                                    .disabled(state.ejectingVolumes.contains(volume.id))
+                            }
+                        }
                 }
             }
             Section("Tags") {
@@ -121,7 +186,19 @@ struct BrowserSidebar: View, Equatable {
                 }
             }
         }
+        // Recreate the native list after a reorder so selection follows the path,
+        // rather than the previous row index retained by AppKit.
+        .id(state.favorites)
         .listStyle(.sidebar)
+        .onDrop(of: [UTType.fileURL], isTargeted: $folderDropTargeted) { providers in
+            FavoriteFolderDrop.perform(providers, add: addFavoriteFolders)
+        }
+        .overlay {
+            if folderDropTargeted {
+                RoundedRectangle(cornerRadius: 8).stroke(Color.accentColor, lineWidth: 2)
+                    .padding(4).allowsHitTesting(false)
+            }
+        }
         .navigationSplitViewColumnWidth(min: 170, ideal: 208, max: 280)
         .safeAreaInset(edge: .bottom) {
             if state.showDiskAccessHint {
@@ -133,6 +210,14 @@ struct BrowserSidebar: View, Equatable {
                         )!)
                 }.font(.caption).padding(12)
             }
+        }
+    }
+
+    @ViewBuilder private func folderActions(_ path: String) -> some View {
+        Button("Open") { select(path) }
+        Button("Open in New Tab") { openInNewTab(URL(fileURLWithPath: path, isDirectory: true)) }
+        Button("Reveal in Finder") {
+            NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)])
         }
     }
 

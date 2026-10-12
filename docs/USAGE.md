@@ -57,7 +57,11 @@ The image is written to `dist/` and labeled with the build architecture.
 For protected folders such as Documents, grant the app **Full Disk Access** in
 System Settings → Privacy & Security → Full Disk Access, then quit and reopen it.
 If the helper does not inherit the grant, add `FinderSearch.app/Contents/Helpers/fsearch`
-as well. Permissions may need refreshing after a rebuild.
+as well. Permissions may need refreshing after a rebuild. FinderSearch restarts
+a restricted search daemon from the same helper executable once per app session
+after detecting Full Disk Access. The existing index is kept; the engine rescans
+previously skipped folders. A daemon belonging to another fsearch installation
+is left running; quit that installation before reopening FinderSearch.
 
 The first launch builds an index; searches become available as indexing progresses.
 The engine keeps its index in `~/Library/Application Support/FSearch`, and its daemon
@@ -79,6 +83,19 @@ or a daemon from another installation. It does not delete the backup.
 Protected folders, network volumes, unmounted drives, and cloud providers still
 obey macOS permissions and availability. Thumbnails skip undownloaded cloud files;
 opening or previewing a cloud file may trigger a provider download.
+
+### Dropbox and other cloud folders
+
+Filename search includes locally enumerable files under
+`~/Library/CloudStorage`, including Dropbox, when the search helper has Full Disk
+Access. No Dropbox account connection or custom index path is required. Use
+**Go → Go to Folder…** to browse your provider's folder, then search within it.
+
+If cloud files are missing, grant Full Disk Access and reopen FinderSearch. If
+necessary, also grant access to the bundled helper as described above. Cloud-only
+folders that the provider has not made available locally may not be enumerable;
+make the folder available offline in the provider and search again. Indexing does
+not intentionally download cloud file contents.
 
 ## Usage
 
@@ -208,3 +225,34 @@ In list view, start below the rows and drag upward to select them. Hold Shift to
 add to the selection or Command to toggle the enclosed files. Escape cancels the
 gesture and restores the previous selection. Drag toward the edge to scroll.
 Starting a drag on a file keeps the normal file drag-and-drop behavior.
+
+### Cut and paste files
+
+Select files or folders and press **Cmd+X**, then navigate to the destination and
+press **Cmd+V**. Cut items appear dimmed in every view and stay in their original location until
+the move succeeds.
+Conflicts use the normal move dialog, and **Cmd+Z** undoes a completed move.
+Failed or skipped items remain pending for another paste. Copying something else
+cancels the pending cut. This cut intent applies within FinderSearch, including
+across its tabs and windows; other apps receive ordinary file URLs.
+
+### Mouse navigation and sidebar favorites
+
+Use your mouse’s Back and Forward buttons to navigate the current tab, just like
+the toolbar buttons. Standard side-button events are supported; a mouse utility
+that remaps them to another action may need its mapping adjusted.
+
+Drag folders from the file view or Finder onto the sidebar to add them to **Favorites**.
+Files and application packages are ignored, and the folders stay in their original location.
+Drag folders within **Favorites** to reorder them. A floating row preview follows
+your mouse, and a blue insertion marker shows where it will land. Press **Esc**
+to cancel a drag. Right-click a favorite for
+**Open**, **Open in New Tab**, **Reveal in Finder**, or **Remove from Sidebar**.
+Removing a shortcut does not delete the folder. Your order and removals are saved
+and shared between windows. Existing custom favorites are retained on upgrade.
+To restore a removed folder, browse to it and choose **Add Folder to Sidebar**.
+Right-click locations for navigation actions and, where available, **Eject**.
+
+Finder tag colors appear beside file names in every view. Tags assigned in FinderSearch and Undo update
+the indicators immediately; hover over the dots to see the tag names.
+Go to Folder supports **Cmd+A**, **Cmd+C**, **Cmd+X**, **Cmd+V**, and Undo/Redo.

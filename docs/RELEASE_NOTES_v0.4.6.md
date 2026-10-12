@@ -1,0 +1,3 @@
+- Fix mouse Back/Forward buttons.
+- Reorder sidebar favorites with a live drag preview; order is saved.
+- Add sidebar right-click menus to open, reveal, remove, or eject.

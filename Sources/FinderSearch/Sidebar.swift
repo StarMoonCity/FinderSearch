@@ -110,6 +110,28 @@ struct BrowserSidebar: View, Equatable {
     }
 
     var body: some View {
+        VStack(spacing: 0) {
+            locations
+            if state.showDiskAccessHint {
+                Divider()
+                Button {
+                    NSWorkspace.shared.open(
+                        URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles")!)
+                } label: {
+                    Text("Enable Full Disk Access…")
+                        .font(.caption).multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .buttonStyle(.plain).padding(12)
+                .frame(maxWidth: .infinity)
+                .background(Color(nsColor: .windowBackgroundColor))
+            }
+        }
+        .navigationSplitViewColumnWidth(min: 170, ideal: 208, max: 280)
+    }
+
+    private var locations: some View {
         List(
             selection: Binding<String?>(
                 get: { state.selection },
@@ -148,6 +170,10 @@ struct BrowserSidebar: View, Equatable {
                 row((home as NSString).lastPathComponent, "house", home)
                     .contextMenu { folderActions(home) }
                 ForEach(state.volumes) { volume in
+                    let ejecting = state.ejectingVolumes.contains(volume.id)
+                    let ejectLabel = ejecting
+                        ? String(localized: "Ejecting \(volume.name)…")
+                        : String(localized: "Eject \(volume.name)")
                     HStack {
                         Label(volume.name, systemImage: "externaldrive")
                         Spacer(minLength: 4)
@@ -155,14 +181,19 @@ struct BrowserSidebar: View, Equatable {
                             Button {
                                 eject(volume)
                             } label: {
-                                Image(systemName: "eject.fill").font(.system(size: 11))
-                                    .foregroundStyle(.primary)
-                                    .frame(width: 24, height: 24)
+                                Group {
+                                    if ejecting {
+                                        ProgressView().controlSize(.small)
+                                    } else {
+                                        Image(systemName: "eject.fill").font(.system(size: 11))
+                                            .foregroundStyle(.primary)
+                                    }
+                                }.frame(width: 24, height: 24)
                             }
                             .buttonStyle(.borderless)
-                            .disabled(state.ejectingVolumes.contains(volume.id))
-                            .help(String(localized: "Eject \(volume.name)"))
-                            .accessibilityLabel(String(localized: "Eject \(volume.name)"))
+                            .disabled(ejecting)
+                            .help(ejectLabel)
+                            .accessibilityLabel(ejectLabel)
                         }
                     }.tag(volume.id)
                         .contextMenu {
@@ -170,7 +201,7 @@ struct BrowserSidebar: View, Equatable {
                             if volume.canEject {
                                 Divider()
                                 Button("Eject “\(volume.name)”") { eject(volume) }
-                                    .disabled(state.ejectingVolumes.contains(volume.id))
+                                    .disabled(ejecting)
                             }
                         }
                 }
@@ -197,18 +228,6 @@ struct BrowserSidebar: View, Equatable {
             if folderDropTargeted {
                 RoundedRectangle(cornerRadius: 8).stroke(Color.accentColor, lineWidth: 2)
                     .padding(4).allowsHitTesting(false)
-            }
-        }
-        .navigationSplitViewColumnWidth(min: 170, ideal: 208, max: 280)
-        .safeAreaInset(edge: .bottom) {
-            if state.showDiskAccessHint {
-                Button("Enable Full Disk Access…") {
-                    NSWorkspace.shared.open(
-                        URL(
-                            string:
-                                "x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles"
-                        )!)
-                }.font(.caption).padding(12)
             }
         }
     }

@@ -1321,6 +1321,16 @@
         }
       }
     },
+    "Ejecting %@…": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在推出 %@…"
+          }
+        }
+      }
+    },
     "Applications": {
       "localizations": {
         "zh-Hans": {

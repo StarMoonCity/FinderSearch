@@ -1770,6 +1770,26 @@
           }
         }
       }
+    },
+    "Library": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "资源库"
+          }
+        }
+      }
+    },
+    "Utilities": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "实用工具"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

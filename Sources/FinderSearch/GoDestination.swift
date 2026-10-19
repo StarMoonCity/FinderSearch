@@ -5,14 +5,14 @@ enum GoDestination: String, CaseIterable, Identifiable {
     var id: Self { self }
     var title: String {
         switch self {
-        case .recents: "Recents"
-        case .documents: "Documents"
-        case .desktop: "Desktop"
-        case .downloads: "Downloads"
-        case .home: "Home"
-        case .library: "Library"
-        case .applications: "Applications"
-        case .utilities: "Utilities"
+        case .recents: String(localized: "Recents")
+        case .documents: String(localized: "Documents")
+        case .desktop: String(localized: "Desktop")
+        case .downloads: String(localized: "Downloads")
+        case .home: String(localized: "Home")
+        case .library: String(localized: "Library")
+        case .applications: String(localized: "Applications")
+        case .utilities: String(localized: "Utilities")
         }
     }
     var key: Character {
